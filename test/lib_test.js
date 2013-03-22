@@ -2,26 +2,6 @@ var grunt = require('grunt');
 var helper = require('../lib/contrib.js').init(grunt);
 
 exports.lib = {
-  findBasePath: function(test) {
-    'use strict';
-    var path = require('path');
-
-    test.expect(3);
-
-    var actual = helper.findBasePath(['dir1/dir2/dir3/file.ext', 'dir1/dir2/another.ext', 'dir1/dir2/dir3/dir4/file.ext']);
-    var expected = path.normalize('dir1/dir2');
-    test.equal(expected, actual, 'should detect basePath from array of filepaths.');
-
-    actual = helper.findBasePath(['dir1/dir2/dir3/file.ext', 'dir1/dir2/another.ext', 'file.ext'], 'dir1');
-    expected = 'dir1';
-    test.equal(expected, actual, 'should default to passed basePath if valid');
-
-    actual = helper.findBasePath(['.dir1/dir2', '.dir1/dir2/another.ext', '.dir1/dir2/dir3/dir4/file.ext', 'file.ext']);
-    expected = '';
-    test.equal(expected, actual, 'should return empty string if foundPath is a single dot (helps with dotfiles)');
-
-    test.done();
-  },
   getNamespaceDeclaration: function(test) {
     'use strict';
 
@@ -77,35 +57,6 @@ exports.lib = {
 
     test.done();
   },
-  options: function(test) {
-    'use strict';
-
-    test.expect(5);
-
-    var options = helper.options({name: 'test_task', target: 'target'}, {required: 'default'});
-
-    var actual = options.param;
-    var expected = 'target';
-    test.equal(expected, actual, 'should allow target options key to override task');
-
-    actual = options.param2;
-    expected = 'task';
-    test.equal(expected, actual, 'should set default task options that can be overriden by target options');
-
-    actual = options.required;
-    expected = 'default';
-    test.equal(expected, actual, 'should allow task to define default values');
-
-    actual = options.template;
-    expected = 'source/';
-    test.equal(expected, actual, 'should automatically process template vars');
-
-    actual = options.data.template;
-    expected = 'source/';
-    test.equal(expected, actual, 'should process template vars recursively');
-
-    test.done();
-  },
   optsToArgs: function(test) {
     'use strict';
 
@@ -146,6 +97,63 @@ exports.lib = {
     expected = path.normalize('path3/path4/file.ext');
     test.equal(expected, actual, 'should strip path from a file path and trim it. (deep)');
 
+    test.done();
+  },
+  minMaxInfo: function(test) {
+    'use strict';
+    test.expect(3);
+
+    var max = new Array(100).join('blah ');
+    var min = max.replace(/\s+/g, '');
+
+    var actual;
+    var expected;
+
+    grunt.util.hooker.hook(grunt.log, 'writeln', {
+      pre: function(result) {
+        actual += grunt.log.uncolor(result) + grunt.util.linefeed;
+        return grunt.util.hooker.preempt();
+      }
+    });
+
+    grunt.util.hooker.hook(grunt.log, 'write', {
+      pre: function(result) {
+        actual += grunt.log.uncolor(result);
+        return grunt.util.hooker.preempt();
+      }
+    });
+
+
+    // No reporting option
+    actual = '';
+    expected = '';
+
+    helper.minMaxInfo(min, max);
+    test.equal(expected, actual, 'should not have reported min and max info.');
+
+    // Report minification results
+    actual = '';
+    expected = [
+      'Original: 495 bytes.',
+      'Minified: 396 bytes.'
+    ].join(grunt.util.linefeed) + grunt.util.linefeed;
+
+    helper.minMaxInfo(min, max, 'min');
+    test.equal(expected, actual, 'should have logged min and max info.');
+
+    // Report minification and gzip results
+    actual = '';
+    expected = [
+      'Original: 495 bytes.',
+      'Minified: 396 bytes.',
+      'Gzipped:  36 bytes.'
+    ].join(grunt.util.linefeed) + grunt.util.linefeed;
+
+    helper.minMaxInfo(min, max, 'gzip');
+    test.equal(expected, actual, 'should have logged min, max, gzip info.');
+
+    grunt.util.hooker.unhook(grunt.log, 'writeln');
+    grunt.util.hooker.unhook(grunt.log, 'write');
     test.done();
   }
 };
